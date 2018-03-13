@@ -22,8 +22,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+Added functionality to report Temperature & Humidity using DHT22 sensor. 
+Will add support for the BME280 (temperature, humidity, barometric pressure)
+and BME680 (temperature, humidity, barometric pressure, and VOC gas) at later stage.
+The BME680 especially useful as detects Volatile Organic Compound gases (e.g. Carbon
+Monoxide).
+*/
+
 #define CONTROLLER_MODEL "GARAGEDOOR"
-#define CONTROLLER_FIRMWARE_VERSION "2.0.0"
+#define CONTROLLER_FIRMWARE_VERSION "2.0.1"
 
 // ARDUINO LIBRARIES
 #include <Arduino.h>

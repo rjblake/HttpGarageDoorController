@@ -79,7 +79,7 @@ void HttpWebServer::enable_apikey_header_auth(const char *apikey_header)
 #endif
 
 #ifdef ENABLE_HTTP_SERVER_OAUTH_AUTH
-void HttpWebServer::enable_oauth_auth(UDP &udp, const char *oauth_consumer_key, const char *oauth_consumer_secret, uint16_t oauth_nonce_size, uint16_t oauth_nonce_history, uint16_t oauth_timestamp_validity_window)
+void HttpWebServer::enable_oauth_auth(UDP &udp, const char *oauth_consumer_key, const char *oauth_consumer_secret, uint16_t oauth_nonce_size, uint16_t oauth_nonce_history, uint32_t oauth_timestamp_validity_window)
 {
   this->_udp = &udp;
   this->_oauth_consumer_key = oauth_consumer_key;

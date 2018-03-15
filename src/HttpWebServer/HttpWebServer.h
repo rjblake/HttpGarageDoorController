@@ -32,7 +32,7 @@ class HttpWebServer
 
 #ifdef ENABLE_HTTP_SERVER_OAUTH_AUTH
     Clock *clock;
-    void enable_oauth_auth(UDP &udp, const char *oauth_consumer_key, const char *oauth_consumer_secret, uint16_t oauth_nonce_size, uint16_t oauth_nonce_history, uint16_t oauth_timestamp_validity_window);
+    void enable_oauth_auth(UDP &udp, const char *oauth_consumer_key, const char *oauth_consumer_secret, uint16_t oauth_nonce_size, uint16_t oauth_nonce_history, uint32_t oauth_timestamp_validity_window);
 #endif
 
     void begin();
@@ -59,7 +59,7 @@ class HttpWebServer
     const char *_oauth_consumer_secret;
     uint16_t _oauth_nonce_size;
     uint16_t _oauth_nonce_history;
-    uint16_t _oauth_timestamp_validity_window;
+    uint32_t _oauth_timestamp_validity_window;
 
     char **_oauth_nonces;
     uint16_t _oauth_nonce_index;

@@ -166,6 +166,9 @@ void getJsonDeviceInfo(char *const jsonDeviceInfo, size_t jsonDeviceInfoSize)
   jsonRoot["firmware"] = CONTROLLER_FIRMWARE_VERSION;
   jsonRoot["ip"] = ip;
   jsonRoot["mac"] = mac;
+  jsonRoot["UTC time"] = formattedTime;
+//  jsonRoot["temperature"] = mac;
+//  jsonRoot["humidity"] = mac;
 
   jsonRoot.printTo(jsonDeviceInfo, jsonDeviceInfoSize);
 }
@@ -210,7 +213,7 @@ void loop()
 
 #ifdef ESP8266
 
-    if (client != NULL) {
+    if (client != 0) {
       LOGPRINT_INFO("\nAccepted new client connection from ");
       LOGPRINT_INFO((IPAddress)client.remoteIP());
       LOGPRINT_INFO(":");

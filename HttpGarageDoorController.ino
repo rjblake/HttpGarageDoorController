@@ -22,19 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-/*
-Added functionality to report Temperature & Humidity using DHT22 sensor. 
-Will add support for the BME280 (temperature, humidity, barometric pressure)
-and BME680 (temperature, humidity, barometric pressure, and VOC gas) at later stage.
-The BME680 especially useful as detects Volatile Organic Compound gases (e.g. Carbon
-Monoxide).
-*/
-
 #define CONTROLLER_MODEL "GARAGEDOOR"
-#define CONTROLLER_FIRMWARE_VERSION "2.0.1"
+// #define CONTROLLER_FIRMWARE_VERSION "2.0.3"
 
 // ARDUINO LIBRARIES
 #include <Arduino.h>
+
+// SENSOR LIBRARIES for TEMPERATURE/HUMIDITY SENSORS
+#include <Wire.h>
+#include "Adafruit_SHT31.h"
 
 #ifdef ESP8266
   #include <ArduinoOTA.h>
@@ -44,7 +40,6 @@ Monoxide).
 
 #include <WiFiClient.h>
 #include <WiFiServer.h>
-
 
 // INCLUDES
 #include "compile.h"
@@ -62,12 +57,13 @@ GarageDoorController gController;
   WiFiUDP gUdp;
 #endif
 
-
 // GLOBAL VARIABLES
 WiFiHelper gWiFiHelper(MDNS_NAME, WIFI_SSID, WIFI_PASSWORD, WIFI_CONNECTION_TIMEOUT);
 WiFiServer gServer(HTTP_SERVER_PORT);
 HttpWebServer gHttpWebServer(gServer, HTTP_SERVER_PORT, HTTP_REQUEST_TIMEOUT, HTTP_REQUEST_BUFFER_SIZE);
 
+// ENVIRONMENT SENSOR
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 // SETUP
 void setup()
@@ -80,6 +76,11 @@ void setup()
   Serial.println("Started Serial Debug");
 #endif
 
+  if (!sht31.begin(0x44)) {
+    Serial.println("Couldn't find SHT31!");
+    while (1) delay(1);
+  }
+  
   LOGPRINTLN_TRACE("Entered setup()");
   gWiFiHelper.enable_led(LED_BUILTIN, LED_BUILTIN_ON, LED_BUILTIN_OFF, false);
 
@@ -94,7 +95,6 @@ void setup()
   // Setup Controller
   gController.setup();
 }
-
 
 // METHODS
 bool connectWiFi()
@@ -111,47 +111,43 @@ bool connectWiFi()
 
   // Start OTA updater / mDNS responder
   LOGPRINT_INFO("Starting OTA updater / mDNS responder");
-
-#ifdef ESP8266
-  ArduinoOTA.setHostname(MDNS_NAME);
-  ArduinoOTA.setPassword(OTA_UPDATER_PASSWORD);
-  ArduinoOTA.begin();
-#else
-
-  if (!WiFiOTA.begin(MDNS_NAME, OTA_UPDATER_PASSWORD, InternalStorage)) {
-    LOGPRINTLN_INFO("...failed!");
-  } else {
-    LOGPRINTLN_INFO("...started!");
-  }
-
-#endif
+  
+  #ifdef ESP8266
+    ArduinoOTA.setHostname(MDNS_NAME);
+    ArduinoOTA.setPassword(OTA_UPDATER_PASSWORD);
+    ArduinoOTA.begin();
+  #else
+    if (!WiFiOTA.begin(MDNS_NAME, OTA_UPDATER_PASSWORD, InternalStorage)) {
+      LOGPRINTLN_INFO("...failed!");
+      } else {
+        LOGPRINTLN_INFO("...started!");
+        }
+  #endif
 
   // Start HTTP web server
   LOGPRINT_INFO("Starting HTTP web server...");
   gHttpWebServer.begin();
   LOGPRINTLN_INFO("started!");
 
-#ifdef ENABLE_HTTP_SERVER_OAUTH_AUTH
-  LOGPRINT_INFO("Initalising clock...");
+  #ifdef ENABLE_HTTP_SERVER_OAUTH_AUTH
+    LOGPRINT_INFO("Initalising clock...");
 
-  if (!gHttpWebServer.clock->update(true)) {
-    LOGPRINTLN_INFO("failed!");
-  } else {
-    LOGPRINT_INFO("initalised at ");
-
-    char formattedTime[20];
-    gHttpWebServer.clock->get_formatted_time(gHttpWebServer.clock->now_utc(), formattedTime, sizeof(formattedTime));
-    LOGPRINT_INFO(formattedTime);
-    LOGPRINTLN_INFO(" UTC");
-  }
-
-#endif
+    if (!gHttpWebServer.clock->update(true)) {
+      LOGPRINTLN_INFO("failed!");
+      } else {
+        LOGPRINT_INFO("initalised at ");
+        char formattedTime[20];
+        gHttpWebServer.clock->get_formatted_time(gHttpWebServer.clock->now_utc(), formattedTime, sizeof(formattedTime));
+        LOGPRINT_INFO(formattedTime);
+        LOGPRINTLN_INFO(" UTC");
+        }
+    #endif
 }
 
 void getJsonDeviceInfo(char *const jsonDeviceInfo, size_t jsonDeviceInfoSize)
 {
   LOGPRINTLN_VERBOSE("Entered getJsonDeviceInfo()");
-  StaticJsonBuffer<200> jsonBuffer;
+  StaticJsonBuffer<256> jsonBuffer;
   JsonObject &jsonRoot = jsonBuffer.createObject();
 
   char mac[18] = {0};
@@ -159,17 +155,29 @@ void getJsonDeviceInfo(char *const jsonDeviceInfo, size_t jsonDeviceInfoSize)
 
   char ip[16] = {0};
   gWiFiHelper.get_client_ip(ip, sizeof(ip));
-
+  
   jsonRoot["mdns"] = MDNS_NAME;
   jsonRoot["name"] = FRIENDLY_NAME;
   jsonRoot["model"] = CONTROLLER_MODEL;
   jsonRoot["firmware"] = CONTROLLER_FIRMWARE_VERSION;
   jsonRoot["ip"] = ip;
   jsonRoot["mac"] = mac;
-  jsonRoot["UTC time"] = formattedTime;
-//  jsonRoot["temperature"] = mac;
-//  jsonRoot["humidity"] = mac;
+  
+  jsonRoot.printTo(jsonDeviceInfo, jsonDeviceInfoSize);
+}
 
+void getJsonEnvironmentInfo(char *const jsonDeviceInfo, size_t jsonDeviceInfoSize)
+{
+  LOGPRINTLN_VERBOSE("Entered getJsonDeviceInfo()");
+  StaticJsonBuffer<64> jsonBuffer;
+  JsonObject &jsonRoot = jsonBuffer.createObject();
+
+  float temperature_c = sht31.readTemperature();
+  float humidity_c = sht31.readHumidity();
+  
+  jsonRoot["temperature"] = temperature_c;
+  jsonRoot["humidity"] = humidity_c;
+  
   jsonRoot.printTo(jsonDeviceInfo, jsonDeviceInfoSize);
 }
 
@@ -178,6 +186,13 @@ uint16_t requestHandler(Client &client, const char *requestMethod, const char *r
   if ((strcmp(requestMethod, "GET") == 0) && (strcasecmp(requestUrl, "/device") == 0)) {
     char jsonDeviceInfo[256];
     getJsonDeviceInfo(jsonDeviceInfo, sizeof(jsonDeviceInfo));
+    HttpWebServer::send_response(client, 200, (uint8_t *)jsonDeviceInfo, strlen(jsonDeviceInfo));
+    return 0;
+  }
+
+  else if ((strcmp(requestMethod, "GET") == 0) && (strcasecmp(requestUrl, "/environment") == 0)) {
+    char jsonDeviceInfo[64];
+    getJsonEnvironmentInfo(jsonDeviceInfo, sizeof(jsonDeviceInfo));
     HttpWebServer::send_response(client, 200, (uint8_t *)jsonDeviceInfo, strlen(jsonDeviceInfo));
     return 0;
   }
@@ -225,4 +240,3 @@ void loop()
     gHttpWebServer.poll(client, requestHandler);
   }
 }
-

@@ -2,7 +2,6 @@
 #define CONFIG_H
 
 // Controller Config
-const char CONTROLLER_FIRMWARE_VERSION[] = "2.0.3";
 const char MDNS_NAME[] = "garagedoorcontroller";
 const char FRIENDLY_NAME[] = "Garage Door Controller";
 const uint16_t DOOR_OUTPUT_PULSE_TIME = 400;
@@ -32,4 +31,3 @@ const uint16_t OAUTH_NONCE_HISTORY = 255;
 const uint32_t OAUTH_TIMESTAMP_VALIDITY_WINDOW = 300000;
 
 #endif // CONFIG
-
